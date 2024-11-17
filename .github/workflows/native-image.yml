@@ -17,14 +17,14 @@ jobs:
   build:
     name: Build native image
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
+#    strategy:
+#      matrix:
+#        platform: [linux/amd64, linux/arm64]
     steps:
-      - name: Prepare
-        run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+#      - name: Prepare
+#        run: |
+#          platform=${{ matrix.platform }}
+#          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v3
 
@@ -48,50 +48,62 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build with Maven
-        run: |
-          uname -a
-          
-          ./mvnw install -Dnative -DskipTests=true \
-          -Dquarkus.native.container-build=true \
-          -Dquarkus.native.container-runtime=docker \
-          -Dquarkus.container-image.build=true \
-          -Dquarkus.native.march=compatibility \
-          -Dquarkus.docker.buildx.platform=${{ matrix.platform }} \
-          -Dquarkus.docker.dockerfile-native-path=src/main/docker/Dockerfile.native-micro \
-          -Dquarkus.container-image.group=togetherds \
-          -Dquarkus.container-image.name=mihomo-exporter \
-          -Dquarkus.container-image.tag=${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }} \
-          -Dquarkus.container-image.additional-tags=latest-${{ env.PLATFORM_PAIR }} \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.username=${{ secrets.DOCKERHUB_USERNAME }} \
-          -Dquarkus.container-image.password=${{ secrets.DOCKERHUB_TOKEN }}
 
-
-  create-manifest:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          file: ./src/main/docker/Dockerfile.multistage
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }}
+            togetherds/mihomo-exporter:latest-${{ env.PLATFORM_PAIR }}
 
-      - name: Create and push manifest
-        run: |
-          export DOCKER_CLI_EXPERIMENTAL=enabled
+#      - name: Build with Maven
+#        run: |
+#          uname -a
+#
+#          ./mvnw install -Dnative -DskipTests=true \
+#          -Dquarkus.native.container-build=true \
+#          -Dquarkus.native.container-runtime=docker \
+#          -Dquarkus.container-image.build=true \
+#          -Dquarkus.native.march=compatibility \
+#          -Dquarkus.docker.buildx.platform=${{ matrix.platform }} \
+#          -Dquarkus.docker.dockerfile-native-path=src/main/docker/Dockerfile.native-micro \
+#          -Dquarkus.container-image.group=togetherds \
+#          -Dquarkus.container-image.name=mihomo-exporter \
+#          -Dquarkus.container-image.tag=${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }} \
+#          -Dquarkus.container-image.additional-tags=latest-${{ env.PLATFORM_PAIR }} \
+#          -Dquarkus.container-image.push=true \
+#          -Dquarkus.container-image.username=${{ secrets.DOCKERHUB_USERNAME }} \
+#          -Dquarkus.container-image.password=${{ secrets.DOCKERHUB_TOKEN }}
 
-          docker manifest rm togetherds/mihomo-exporter:${{ github.event.inputs.version }} || true
-          docker manifest rm togetherds/mihomo-exporter:latest || true
 
-          docker manifest create togetherds/mihomo-exporter:${{ github.event.inputs.version }} \
-            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-linux-amd64 \
-            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-linux-arm64
-          
-          docker manifest create togetherds/mihomo-exporter:latest \
-            togetherds/mihomo-exporter:latest-linux-amd64 \
-            togetherds/mihomo-exporter:latest-linux-arm64
-          
-          docker manifest push togetherds/mihomo-exporter:${{ github.event.inputs.version }}
-          docker manifest push togetherds/mihomo-exporter:latest
+#  create-manifest:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Login to DockerHub
+#        uses: docker/login-action@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_TOKEN }}
+#
+#      - name: Create and push manifest
+#        run: |
+#          export DOCKER_CLI_EXPERIMENTAL=enabled
+#
+#          docker manifest rm togetherds/mihomo-exporter:${{ github.event.inputs.version }} || true
+#          docker manifest rm togetherds/mihomo-exporter:latest || true
+#
+#          docker manifest create togetherds/mihomo-exporter:${{ github.event.inputs.version }} \
+#            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-linux-amd64 \
+#            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-linux-arm64
+#
+#          docker manifest create togetherds/mihomo-exporter:latest \
+#            togetherds/mihomo-exporter:latest-linux-amd64 \
+#            togetherds/mihomo-exporter:latest-linux-arm64
+#
+#          docker manifest push togetherds/mihomo-exporter:${{ github.event.inputs.version }}
+#          docker manifest push togetherds/mihomo-exporter:latest
