@@ -58,7 +58,7 @@ jobs:
           -Dquarkus.docker.dockerfile-native-path=src/main/docker/Dockerfile.native-micro \
           -Dquarkus.container-image.group=togetherds \
           -Dquarkus.container-image.name=mihomo-exporter \
-          -Dquarkus.container-image.tag=${{ github.event.inputs.version + "-" + env.PLATFORM_PAIR }} \
+          -Dquarkus.container-image.tag=${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }} \
           -Dquarkus.container-image.additional-tags=latest-${{ env.PLATFORM_PAIR }} \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.username=${{ secrets.DOCKERHUB_USERNAME }} \
