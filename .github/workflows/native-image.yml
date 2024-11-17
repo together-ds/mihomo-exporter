@@ -59,21 +59,21 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }}
-            togetherds/mihomo-exporter:latest-${{ env.PLATFORM_PAIR }}
+            togetherds/mihomo-exporter:${{ github.event.inputs.version }}
+            togetherds/mihomo-exporter:latest
 
-  create-manifests:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create and push manifest
-        run: |
-          VERSION=${{ github.event.inputs.version }}
-          docker manifest create togetherds/mihomo-exporter:${VERSION} \
-            togetherds/mihomo-exporter:${VERSION}-linux-amd64 \
-            togetherds/mihomo-exporter:${VERSION}-linux-arm64
-          docker manifest create togetherds/mihomo-exporter:latest \
-            togetherds/mihomo-exporter:latest-linux-amd64 \
-            togetherds/mihomo-exporter:latest-linux-arm64
-          docker manifest push togetherds/mihomo-exporter:${VERSION}
-          docker manifest push togetherds/mihomo-exporter:latest
+#  create-manifests:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Create and push manifest
+#        run: |
+#          VERSION=${{ github.event.inputs.version }}
+#          docker manifest create togetherds/mihomo-exporter:${VERSION} \
+#            togetherds/mihomo-exporter:${VERSION}-linux-amd64 \
+#            togetherds/mihomo-exporter:${VERSION}-linux-arm64
+#          docker manifest create togetherds/mihomo-exporter:latest \
+#            togetherds/mihomo-exporter:latest-linux-amd64 \
+#            togetherds/mihomo-exporter:latest-linux-arm64
+#          docker manifest push togetherds/mihomo-exporter:${VERSION}
+#          docker manifest push togetherds/mihomo-exporter:latest
