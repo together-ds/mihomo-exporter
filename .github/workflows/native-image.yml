@@ -21,6 +21,11 @@ jobs:
       matrix:
         platform: [linux/amd64, linux/arm64]
     steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV          
+
       - uses: actions/checkout@v3
       
       - name: Set up QEMU
@@ -42,8 +47,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ matrix.platform | replace('linux/', 'linux-') }}
-            togetherds/mihomo-exporter:latest-${{ matrix.platform | replace('linux/', 'linux-') }}
+            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ env.PLATFORM_PAIR }}
+            togetherds/mihomo-exporter:latest-${{ env.PLATFORM_PAIR }}
 
   create-manifests:
     needs: build
