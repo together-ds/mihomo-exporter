@@ -42,8 +42,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: true
           tags: |
-            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ matrix.platform }}
-            togetherds/mihomo-exporter:latest-${{ matrix.platform }}
+            togetherds/mihomo-exporter:${{ github.event.inputs.version }}-${{ matrix.platform | replace('linux/', 'linux-') }}
+            togetherds/mihomo-exporter:latest-${{ matrix.platform | replace('linux/', 'linux-') }}
 
   create-manifests:
     needs: build
