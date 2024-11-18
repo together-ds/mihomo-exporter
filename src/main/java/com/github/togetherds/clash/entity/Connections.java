@@ -1,7 +1,10 @@
 package com.github.togetherds.clash.entity;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.util.List;
 
+@RegisterForReflection
 public class Connections {
     private long downloadTotal;
     private long uploadTotal;

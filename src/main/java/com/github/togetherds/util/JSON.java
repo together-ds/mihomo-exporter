@@ -15,6 +15,7 @@ public class JSON {
             throw new RuntimeException(e);
         }
     }
+
     public static <T> T toBean(String string, TypeReference<T> typeReference) {
         ObjectMapper om = CDI.current().select(ObjectMapper.class).get();
         try {
@@ -23,6 +24,7 @@ public class JSON {
             throw new RuntimeException(e);
         }
     }
+
     public static <T> T toBean(String string, Class<T> clazz) {
         ObjectMapper om = CDI.current().select(ObjectMapper.class).get();
         try {

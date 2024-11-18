@@ -1,5 +1,8 @@
 package com.github.togetherds.clash.entity;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
 public class Traffic {
     public long up;
     public long down;

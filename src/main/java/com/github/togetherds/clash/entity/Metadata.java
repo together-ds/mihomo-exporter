@@ -1,6 +1,8 @@
 package com.github.togetherds.clash.entity;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
+@RegisterForReflection
 public class Metadata {
     private String network;
     private String type;
