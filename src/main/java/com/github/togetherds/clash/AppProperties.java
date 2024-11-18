@@ -8,13 +8,8 @@ import java.util.Optional;
 
 @ConfigMapping(prefix = "clash")
 public interface AppProperties {
-    @WithDefault("127.0.0.1")
-    String host();
+    @WithDefault("http://127.0.0.1:9090")
+    String url();
 
-    @WithDefault("9090")
-    Integer port();
-
-    Optional<String> username();
-
-    Optional<String> password();
+    Optional<String> secret();
 }
