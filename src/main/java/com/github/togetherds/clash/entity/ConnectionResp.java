@@ -5,7 +5,7 @@ import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.util.List;
 
 @RegisterForReflection
-public class Connections {
+public class ConnectionResp {
     private long downloadTotal;
     private long uploadTotal;
     private List<Connection> connections;

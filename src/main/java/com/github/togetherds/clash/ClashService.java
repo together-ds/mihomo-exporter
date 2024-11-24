@@ -1,14 +1,12 @@
 package com.github.togetherds.clash;
 
-import com.github.togetherds.clash.entity.Connections;
-import com.github.togetherds.clash.entity.Memory;
-import com.github.togetherds.clash.entity.Traffic;
+import com.github.togetherds.clash.entity.*;
 import com.github.togetherds.util.JSON;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
+import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,14 +18,22 @@ import java.io.InputStreamReader;
 import java.util.function.Supplier;
 
 @Path("/")
-@ClientHeaderParam(name = "Authorization", value = "Bearer ${clash.secret}", required = false)
+@RegisterClientHeaders(CLashRequestHeaderFactory.class)
 public interface ClashService {
 
     Logger LOGGER = LoggerFactory.getLogger(ClashService.class);
 
     @GET
     @Path("/connections")
-    Connections connections();
+    ConnectionResp connections();
+
+    @GET
+    @Path("/group")
+    GroupResp group();
+
+    @GET
+    @Path("/proxies")
+    ProxiesResp proxies();
 
     @GET
     @Path("/traffic")
