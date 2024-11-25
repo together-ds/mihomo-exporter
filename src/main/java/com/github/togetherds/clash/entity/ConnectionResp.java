@@ -10,6 +10,7 @@ public class ConnectionResp {
     private long uploadTotal;
     private List<Connection> connections;
     private long memory;
+    private final long timestamp = System.currentTimeMillis();
 
     public long getDownloadTotal() {
         return downloadTotal;
@@ -41,5 +42,9 @@ public class ConnectionResp {
 
     public void setMemory(long memory) {
         this.memory = memory;
+    }
+
+    public long getTimestamp() {
+        return timestamp;
     }
 }

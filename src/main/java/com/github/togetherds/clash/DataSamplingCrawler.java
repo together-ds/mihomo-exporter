@@ -1,8 +1,10 @@
 package com.github.togetherds.clash;
 
 import com.github.togetherds.clash.entity.*;
+import com.github.togetherds.util.Pair;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.BaseUnits;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.annotation.PostConstruct;
@@ -37,48 +39,79 @@ public class DataSamplingCrawler {
 
     ClashService clashService;
 
-    private final AtomicReference<Traffic> latestTraffic = new AtomicReference<>(new Traffic());
-    private final AtomicReference<ConnectionResp> latestConnectionResp = new AtomicReference<>(new ConnectionResp());
+    private final AtomicReference<Pair<ConnectionResp>> latestConnectionResp = new AtomicReference<>(new Pair<>(new ConnectionResp(), new ConnectionResp()));
     private final AtomicReference<GroupResp> latestGroupResp = new AtomicReference<>(new GroupResp());
     private final AtomicReference<ProxiesResp> latestProxiesResp = new AtomicReference<>(new ProxiesResp());
 
     @PostConstruct
     public void init() {
+
         clashService = QuarkusRestClientBuilder.newBuilder()
             .baseUri(URI.create(appProperties.url()))
             .build(ClashService.class);
 
         // Create gauges that will dynamically fetch the latest values
-        Gauge.builder(CLASH_TRAFFIC_CURRENT, latestTraffic, t -> t.get().getUp())
-            .tag("direction", "upload")
+        Gauge.builder(CLASH_TRAFFIC_CURRENT, latestConnectionResp, t -> {
+                return t.get().map((latest, prev) -> {
+                    long latestDownloadTotal = latest.getDownloadTotal();
+                    long prevDownloadTotal = prev.getDownloadTotal();
+                    if (latestDownloadTotal == 0 || prevDownloadTotal == 0) {
+                        return 0d;
+                    } else if (latestDownloadTotal < prevDownloadTotal) {
+                        return 0d;
+                    }
+                    double seconds = latest.getTimestamp() - prev.getTimestamp() / 1000.0;
+                    return (latestDownloadTotal - prevDownloadTotal) / seconds;
+                });
+            })
+            .tag("direction", "download")
             .description("The current upload speed of Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_TRAFFIC_CURRENT, latestTraffic, t -> t.get().getDown())
-            .tag("direction", "download")
+        Gauge.builder(CLASH_TRAFFIC_CURRENT, latestConnectionResp, t -> {
+                return t.get().map((latest, prev) -> {
+                    long latestUploadTotal = latest.getUploadTotal();
+                    long prevUploadTotal = prev.getUploadTotal();
+                    if (latestUploadTotal == 0 || prevUploadTotal == 0) {
+                        return 0d;
+                    } else if (latestUploadTotal < prevUploadTotal) {
+                        return 0d;
+                    }
+                    double seconds = latest.getTimestamp() - prev.getTimestamp() / 1000.0;
+                    return (latestUploadTotal - prevUploadTotal) / seconds;
+                });
+            })
+            .tag("direction", "upload")
             .description("The current download speed of Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_TRAFFIC_TOTAL, latestConnectionResp, c -> c.get().getUploadTotal())
+        Gauge.builder(CLASH_TRAFFIC_TOTAL, latestConnectionResp, c -> c.get().getLatest().getUploadTotal())
             .tag("direction", "upload")
+            .baseUnit(BaseUnits.BYTES)
             .description("Total upload bytes of Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_TRAFFIC_TOTAL, latestConnectionResp, c -> c.get().getDownloadTotal())
+        Gauge.builder(CLASH_TRAFFIC_TOTAL, latestConnectionResp, c -> c.get().getLatest().getDownloadTotal())
             .tag("direction", "download")
+            .baseUnit(BaseUnits.BYTES)
             .description("Total download bytes of Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_MEMORY_INUSE, latestConnectionResp, c -> c.get().getMemory())
+        Gauge.builder(CLASH_MEMORY_INUSE, latestConnectionResp, c -> c.get().getLatest().getMemory())
+            .baseUnit(BaseUnits.BYTES)
             .description("Total memory used by Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_CONNECTIONS, latestConnectionResp, c -> nullToEmpty(c.get().getConnections()).size())
+        Gauge.builder(CLASH_CONNECTIONS, latestConnectionResp, c -> nullToEmpty(c.get()
+                .getLatest()
+                .getConnections()).size())
             .tag("type", "total")
             .description("The total number of connections in Clash")
             .register(registry);
 
-        Gauge.builder(CLASH_CONNECTIONS, latestConnectionResp, c -> nullToEmpty(c.get().getConnections()).size())
+        Gauge.builder(CLASH_CONNECTIONS, latestConnectionResp, c -> nullToEmpty(c.get()
+                .getLatest()
+                .getConnections()).size())
             .tag("type", "total")
             .description("The total number of connections in Clash")
             .register(registry);
@@ -98,21 +131,16 @@ public class DataSamplingCrawler {
             .description("The total number of proxies in Clash")
             .register(registry);
 
+
         // For connection types, we'll update in the scheduled method
     }
 
     @Scheduled(every = "${scheduler.fetchInterval:5S}")
     public void updateMetrics() {
-        try {
-            Traffic traffic = clashService.traffic();
-            latestTraffic.set(traffic);
-        } catch (Exception e) {
-            LOGGER.warn("Failed to get traffic:{}", e.getMessage());
-        }
 
         try {
             ConnectionResp connections = clashService.connections();
-            latestConnectionResp.set(connections);
+            latestConnectionResp.set(latestConnectionResp.get().update(connections));
 
             List<Connection> connectionList = nullToEmpty(connections.getConnections());
             Map<String, List<Connection>> connectionTypeMap = connectionList.stream()
@@ -163,5 +191,7 @@ public class DataSamplingCrawler {
         } catch (Exception e) {
             LOGGER.warn("Failed to get proxies:{}", e.getMessage());
         }
+
+
     }
 }
