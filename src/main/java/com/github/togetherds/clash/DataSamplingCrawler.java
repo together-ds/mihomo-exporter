@@ -60,7 +60,7 @@ public class DataSamplingCrawler {
                     } else if (latestDownloadTotal < prevDownloadTotal) {
                         return 0d;
                     }
-                    double seconds = latest.getTimestamp() - prev.getTimestamp() / 1000.0;
+                    double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
                     return (latestDownloadTotal - prevDownloadTotal) / seconds;
                 });
             })
@@ -77,7 +77,7 @@ public class DataSamplingCrawler {
                     } else if (latestUploadTotal < prevUploadTotal) {
                         return 0d;
                     }
-                    double seconds = latest.getTimestamp() - prev.getTimestamp() / 1000.0;
+                    double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
                     return (latestUploadTotal - prevUploadTotal) / seconds;
                 });
             })
