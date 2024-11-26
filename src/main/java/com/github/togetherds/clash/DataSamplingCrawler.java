@@ -57,38 +57,32 @@ public class DataSamplingCrawler {
 
         // Create gauges that will dynamically fetch the latest values
         Gauge.builder(CLASH_TRAFFIC_CURRENT, latestConnectionResp, t -> {
-                return t.get().map((latest, prev) -> {
-                    long latestDownloadTotal = latest.getDownloadTotal();
-                    long prevDownloadTotal = prev.getDownloadTotal();
-                    if (latestDownloadTotal == 0 || prevDownloadTotal == 0) {
-                        return 0d;
-                    } else if (latestDownloadTotal < prevDownloadTotal) {
-                        return 0d;
-                    }
-                    double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
-                    return (latestDownloadTotal - prevDownloadTotal) / seconds;
-                });
-            })
-            .tag("direction", "download")
-            .description("The current upload speed of Clash")
-            .register(registry);
+            return t.get().map((latest, prev) -> {
+                long latestDownloadTotal = latest.getDownloadTotal();
+                long prevDownloadTotal = prev.getDownloadTotal();
+                if (latestDownloadTotal == 0 || prevDownloadTotal == 0) {
+                    return 0d;
+                } else if (latestDownloadTotal < prevDownloadTotal) {
+                    return 0d;
+                }
+                double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
+                return (latestDownloadTotal - prevDownloadTotal) / seconds;
+            });
+        }).tag("direction", "download").description("The current upload speed of Clash").register(registry);
 
         Gauge.builder(CLASH_TRAFFIC_CURRENT, latestConnectionResp, t -> {
-                return t.get().map((latest, prev) -> {
-                    long latestUploadTotal = latest.getUploadTotal();
-                    long prevUploadTotal = prev.getUploadTotal();
-                    if (latestUploadTotal == 0 || prevUploadTotal == 0) {
-                        return 0d;
-                    } else if (latestUploadTotal < prevUploadTotal) {
-                        return 0d;
-                    }
-                    double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
-                    return (latestUploadTotal - prevUploadTotal) / seconds;
-                });
-            })
-            .tag("direction", "upload")
-            .description("The current download speed of Clash")
-            .register(registry);
+            return t.get().map((latest, prev) -> {
+                long latestUploadTotal = latest.getUploadTotal();
+                long prevUploadTotal = prev.getUploadTotal();
+                if (latestUploadTotal == 0 || prevUploadTotal == 0) {
+                    return 0d;
+                } else if (latestUploadTotal < prevUploadTotal) {
+                    return 0d;
+                }
+                double seconds = (latest.getTimestamp() - prev.getTimestamp()) / 1000.0;
+                return (latestUploadTotal - prevUploadTotal) / seconds;
+            });
+        }).tag("direction", "upload").description("The current download speed of Clash").register(registry);
 
         Gauge.builder(CLASH_TRAFFIC_TOTAL, latestConnectionResp, c -> c.get().getLatest().getUploadTotal())
             .tag("direction", "upload")
@@ -164,12 +158,10 @@ public class DataSamplingCrawler {
             Map<String, List<Connection>> connectionTypeMap = connectionList.stream()
                 .collect(Collectors.groupingBy(c -> c.getMetadata().getType()));
 
-            clashConnectionsMultiGauge.register(connectionTypeMap.entrySet()
-                .stream()
-                .map(entry -> {
-                    String type = entry.getKey();
-                    return MultiGauge.Row.of(Tags.of("type", type), entry.getValue()::size);
-                }).collect(Collectors.toList()), true);
+            clashConnectionsMultiGauge.register(connectionTypeMap.entrySet().stream().map(entry -> {
+                String type = entry.getKey();
+                return MultiGauge.Row.of(Tags.of("type", type), entry.getValue()::size);
+            }).collect(Collectors.toList()), true);
         } catch (Exception e) {
             LOGGER.warn("Failed to get connections:{}", e.getMessage());
         }
@@ -177,8 +169,7 @@ public class DataSamplingCrawler {
         try {
             GroupResp groupResp = clashService.group();
             this.latestGroupResp.set(groupResp);
-            List<MultiGauge.Row<?>> rows = nullToEmpty(groupResp.getProxies())
-                .stream()
+            List<MultiGauge.Row<?>> rows = nullToEmpty(groupResp.getProxies()).stream()
                 .collect(Collectors.groupingBy(Proxy::isAlive))
                 .entrySet()
                 .stream()
