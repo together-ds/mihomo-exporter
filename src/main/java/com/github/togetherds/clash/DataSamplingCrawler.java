@@ -209,7 +209,7 @@ public class DataSamplingCrawler {
                     return MultiGauge.Row.of(Tags.of("type", isAlive ? "alive" : "dead"), entry.getValue()::size);
                 })
                 .collect(Collectors.toList());
-            clashGroupsMultiGauge.register(rows, true);
+            clashProxiesMultiGauge.register(rows, true);
         } catch (Exception e) {
             LOGGER.warn("Failed to get proxies:{}", e.getMessage());
         }
