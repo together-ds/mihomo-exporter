@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -32,6 +33,7 @@ public class DataSamplingCrawler {
     public static final String CLASH_TRAFFIC_CURRENT = "clash.traffic.current";
     public static final String CLASH_TRAFFIC_TOTAL = "clash.traffic.total";
     public static final String CLASH_MEMORY_INUSE = "clash.memory.inuse";
+    public static final String CLASH_CONNECTION_STATISTICS = "clash.connections.statistics";
 
     @Inject
     AppProperties appProperties;
@@ -141,6 +143,33 @@ public class DataSamplingCrawler {
 
         clashProxiesMultiGauge = MultiGauge.builder(CLASH_PROXIES)
             .description("The number of proxies in Clash")
+            .register(registry);
+
+
+        Gauge.builder(CLASH_CONNECTION_STATISTICS, latestConnectionResp, c -> {
+                List<Connection> connectionList = nullToEmpty(c.get().getLatest().getConnections());
+                return connectionList.stream()
+                    .map(Connection::getMetadata)
+                    .filter(Objects::nonNull)
+                    .map(Metadata::getSourceIP)
+                    .distinct()
+                    .count();
+            })
+            .tag("type", "client")
+            .description("The client and remote statistics in Clash")
+            .register(registry);
+
+        Gauge.builder(CLASH_CONNECTION_STATISTICS, latestConnectionResp, c -> {
+                List<Connection> connectionList = nullToEmpty(c.get().getLatest().getConnections());
+                return connectionList.stream()
+                    .map(Connection::getMetadata)
+                    .filter(Objects::nonNull)
+                    .map(Metadata::getRemoteDestination)
+                    .distinct()
+                    .count();
+            })
+            .tag("type", "remote")
+            .description("The client and remote statistics in Clash")
             .register(registry);
 
 
