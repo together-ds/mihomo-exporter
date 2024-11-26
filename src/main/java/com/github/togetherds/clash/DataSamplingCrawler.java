@@ -4,6 +4,8 @@ import com.github.togetherds.clash.entity.*;
 import com.github.togetherds.util.Pair;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.MultiGauge;
+import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.binder.BaseUnits;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import io.quarkus.scheduler.Scheduled;
@@ -42,6 +44,9 @@ public class DataSamplingCrawler {
     private final AtomicReference<Pair<ConnectionResp>> latestConnectionResp = new AtomicReference<>(new Pair<>(new ConnectionResp(), new ConnectionResp()));
     private final AtomicReference<GroupResp> latestGroupResp = new AtomicReference<>(new GroupResp());
     private final AtomicReference<ProxiesResp> latestProxiesResp = new AtomicReference<>(new ProxiesResp());
+    private MultiGauge clashConnectionsMultiGauge;
+    private MultiGauge clashGroupsMultiGauge;
+    private MultiGauge clashProxiesMultiGauge;
 
     @PostConstruct
     public void init() {
@@ -131,6 +136,19 @@ public class DataSamplingCrawler {
             .description("The total number of proxies in Clash")
             .register(registry);
 
+        clashConnectionsMultiGauge = MultiGauge.builder(CLASH_CONNECTIONS)
+            .baseUnit(BaseUnits.CONNECTIONS)
+            .description("The number of connections in Clash")
+            .register(registry);
+
+        clashGroupsMultiGauge = MultiGauge.builder(CLASH_GROUPS)
+            .description("The number of groups in Clash")
+            .register(registry);
+
+        clashProxiesMultiGauge = MultiGauge.builder(CLASH_PROXIES)
+            .description("The number of proxies in Clash")
+            .register(registry);
+
 
         // For connection types, we'll update in the scheduled method
     }
@@ -146,12 +164,12 @@ public class DataSamplingCrawler {
             Map<String, List<Connection>> connectionTypeMap = connectionList.stream()
                 .collect(Collectors.groupingBy(c -> c.getMetadata().getType()));
 
-            connectionTypeMap.forEach((type, conns) -> {
-                Gauge.builder(CLASH_CONNECTIONS, conns::size)
-                    .tag("type", type)
-                    .description("The number of " + type + " connections in Clash")
-                    .register(registry);
-            });
+            clashConnectionsMultiGauge.register(connectionTypeMap.entrySet()
+                .stream()
+                .map(entry -> {
+                    String type = entry.getKey();
+                    return MultiGauge.Row.of(Tags.of("type", type), entry.getValue()::size);
+                }).collect(Collectors.toList()), true);
         } catch (Exception e) {
             LOGGER.warn("Failed to get connections:{}", e.getMessage());
         }
@@ -159,16 +177,19 @@ public class DataSamplingCrawler {
         try {
             GroupResp groupResp = clashService.group();
             this.latestGroupResp.set(groupResp);
-            nullToEmpty(groupResp.getProxies()).stream()
+            List<MultiGauge.Row<?>> rows = nullToEmpty(groupResp.getProxies())
+                .stream()
                 .collect(Collectors.groupingBy(Proxy::isAlive))
-                .forEach((isAlive, proxies) -> {
-                    String type = isAlive ? "alive" : "dead";
-                    Gauge.builder(CLASH_GROUPS, proxies::size)
-                        .tag("type", type)
-                        .description("The number of " + type + " groups in Clash")
-                        .register(registry);
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    Boolean isAlive = entry.getKey();
+                    List<Proxy> proxies = entry.getValue();
+                    return MultiGauge.Row.of(Tags.of("type", isAlive ? "alive" : "dead"), proxies::size);
+                })
+                .collect(Collectors.toList());
 
-                });
+            clashGroupsMultiGauge.register(rows, true);
         } catch (Exception e) {
             LOGGER.warn("Failed to get group:{}", e.getMessage());
         }
@@ -177,17 +198,18 @@ public class DataSamplingCrawler {
             ProxiesResp proxiesResp = clashService.proxies();
             this.latestProxiesResp.set(proxiesResp);
 
-            Map<String, Proxy> proxies = nullToEmpty(proxiesResp.getProxies());
-            proxies.entrySet()
+
+            List<MultiGauge.Row<?>> rows = nullToEmpty(proxiesResp.getProxies()).entrySet()
                 .stream()
                 .collect(Collectors.groupingBy(e -> e.getValue().isAlive()))
-                .forEach((isAlive, proxyEntries) -> {
-                    String type = isAlive ? "alive" : "dead";
-                    Gauge.builder(CLASH_PROXIES, proxyEntries::size)
-                        .tag("type", type)
-                        .description("The number of " + type + " proxies in Clash")
-                        .register(registry);
-                });
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    Boolean isAlive = entry.getKey();
+                    return MultiGauge.Row.of(Tags.of("type", isAlive ? "alive" : "dead"), entry.getValue()::size);
+                })
+                .collect(Collectors.toList());
+            clashGroupsMultiGauge.register(rows, true);
         } catch (Exception e) {
             LOGGER.warn("Failed to get proxies:{}", e.getMessage());
         }
